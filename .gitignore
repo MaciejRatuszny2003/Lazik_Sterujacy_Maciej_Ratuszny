@@ -1,0 +1,169 @@
+#include <WiFi.h>
+#include <WebServer.h>
+
+const int motorL_kierunek_przod = 4;
+const int motorL_kierunek_tyl = 5;
+const int pwm_L_predkosc = 15;
+
+const int motorR_kierunek_przod = 6;
+const int motorR_kierunek_tyl = 7;
+const int pwm_R_predkosc = 16;
+
+const int czestotliwosc = 1000;      
+const int rozdzielczosc = 8;   
+
+const char* ssid = "Lazik";
+const char* password = "12345678";
+
+unsigned long ostatniRuch = 0;
+const unsigned long limitCzasu = 500;
+
+WebServer server(80);
+
+String getHTML() 
+{
+  String html = "<!DOCTYPE html><html><head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">";
+  html += "<meta charset=\"UTF-8\">";
+  html += "<style>body { font-family: Arial; text-align: center; margin-top: 50px; background-color: #f0f0f0; }";
+  html += "button { width: 120px; height: 80px; font-size: 20px; margin: 10px; border-radius: 10px; border: none; background-color: #007BFF; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }";
+  html += "button:active { background-color: #0056b3; transform: translateY(2px); }";
+  html += ".stop-btn { background-color: #DC3545; height: 100px; width: 260px; font-weight: bold; }";
+  html += ".stop-btn:active { background-color: #a71d2a; }</style></head><body>";
+  
+  html += "<h2>Panel Sterowania</h2>";
+  html += "<button onclick=\"fetch('/przod')\">▲ PRZÓD</button><br>";
+  html += "<button onclick=\"fetch('/lewo')\">◄ LEWO</button>";
+  html += "<button onclick=\"fetch('/prawo')\">PRAWO ►</button><br>";
+  html += "<button onclick=\"fetch('/tyl')\">▼ TYŁ</button><br><br>";
+  html += "<button class=\"stop-btn\" onclick=\"fetch('/stop')\">STOP</button>";
+  
+  html += "</body></html>";
+  return html;
+}
+
+void jazdaPrzod(int predkosc) 
+{
+  ostatniRuch = millis();
+  digitalWrite(motorL_kierunek_przod, HIGH);
+  digitalWrite(motorL_kierunek_tyl, LOW);
+  ledcWrite(pwm_L_predkosc, predkosc); 
+  
+  digitalWrite(motorR_kierunek_przod, HIGH);
+  digitalWrite(motorR_kierunek_tyl, LOW);
+  ledcWrite(pwm_R_predkosc, predkosc);
+}
+
+void jazdaTyl(int predkosc) 
+{
+  ostatniRuch = millis();
+  digitalWrite(motorL_kierunek_przod, LOW);
+  digitalWrite(motorL_kierunek_tyl, HIGH);
+  ledcWrite(pwm_L_predkosc, predkosc);
+  
+  digitalWrite(motorR_kierunek_przod, LOW);
+  digitalWrite(motorR_kierunek_tyl, HIGH);
+  ledcWrite(pwm_R_predkosc, predkosc);
+}
+
+void skretPrawo(int predkosc) 
+{
+  ostatniRuch = millis();
+  digitalWrite(motorL_kierunek_przod, HIGH);
+  digitalWrite(motorL_kierunek_tyl, LOW);
+  ledcWrite(pwm_L_predkosc, predkosc);
+  
+  digitalWrite(motorR_kierunek_przod, LOW);
+  digitalWrite(motorR_kierunek_tyl, HIGH);
+  ledcWrite(pwm_R_predkosc, predkosc);
+}
+
+void skretLewo(int predkosc) 
+{
+  ostatniRuch = millis();
+  digitalWrite(motorL_kierunek_przod, LOW);
+  digitalWrite(motorL_kierunek_tyl, HIGH);
+  ledcWrite(pwm_L_predkosc, predkosc);
+  
+  digitalWrite(motorR_kierunek_przod, HIGH);
+  digitalWrite(motorR_kierunek_tyl, LOW);
+  ledcWrite(pwm_R_predkosc, predkosc);
+}
+
+void stopGwaltowny() 
+{
+  digitalWrite(motorL_kierunek_przod, LOW);
+  digitalWrite(motorL_kierunek_tyl, LOW);
+  ledcWrite(pwm_L_predkosc, 0); 
+  
+  digitalWrite(motorR_kierunek_przod, LOW);
+  digitalWrite(motorR_kierunek_tyl, LOW);
+  ledcWrite(pwm_R_predkosc, 0);
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  pinMode(motorL_kierunek_przod, OUTPUT); 
+  pinMode(motorL_kierunek_tyl, OUTPUT);
+  pinMode(motorR_kierunek_przod, OUTPUT); 
+  pinMode(motorR_kierunek_tyl, OUTPUT);
+  
+  ledcAttach(pwm_L_predkosc, czestotliwosc, rozdzielczosc);
+  ledcAttach(pwm_R_predkosc, czestotliwosc, rozdzielczosc);
+
+  stopGwaltowny();
+
+  Serial.println("\nUruchamianie sieci WiFi...");
+  WiFi.softAP(ssid, password);
+  Serial.print("Adres IP Lazika: ");
+  Serial.println(WiFi.softAPIP());
+
+  server.on("/", []() { server.send(200, "text/html", getHTML()); });
+  
+  server.on("/przod", []() 
+  {
+    Serial.println("Jazda do przodu!");
+    jazdaPrzod(200); 
+    server.send(200, "text/html", getHTML());
+  });
+  
+  server.on("/tyl", []() 
+  {
+    Serial.println("Jazda do tylu!");
+    jazdaTyl(200);
+    server.send(200, "text/html", getHTML());
+  });
+  
+  server.on("/lewo", []() 
+  {
+    Serial.println("Obrót w lewo!");
+    skretLewo(150); 
+    server.send(200, "text/html", getHTML());
+  });
+  
+  server.on("/prawo", []() 
+  {
+    Serial.println("Obrót w prawo!");
+    skretPrawo(150);
+    server.send(200, "text/html", getHTML());
+  });
+  
+  server.on("/stop", []() 
+  {
+    Serial.println("STOP!");
+    stopGwaltowny();
+    server.send(200, "text/html", getHTML());
+  });
+
+  server.begin();
+  Serial.println("Serwer gotowy do obierania rozkazow!");
+}
+
+void loop() 
+{
+  server.handleClient();
+  if (millis() - ostatniRuch > limitCzasu)
+  {
+    stopGwaltowny();
+  }
+}
