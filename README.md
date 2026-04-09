@@ -1,6 +1,7 @@
   # Lazik_Sterujacy_Maciej_Ratuszny
 Zdalnie sterowany łazik 2WD oparty na ESP32-S3. Projekt obejmuje autorski serwer WWW do sterowania przez WiFi, implementację sygnałów PWM (ledc) oraz autorski mechanizm bezpieczeństwa (watchdog timeout) zapobiegający utracie kontroli nad robotem.
 
+![Mój Łazik](foto_lazik.jpg)
   # Funkcje robota i zasada działania
 * Sterowanie przez WiFi. Łazik tworzy własną sieć (Access Point). Wystarczy się z nią połączyć z dowolnego telefonu lub laptopa i wpisać adres w przeglądarce, aby zobaczyć panel sterowania.
 * Płynna jazda (PWM). Silniki nie działają tylko w trybie 0/1. Wykorzystałem sprzętowe sygnały PWM, dzięki czemu łazik precyzyjnie reaguje na polecenia.
